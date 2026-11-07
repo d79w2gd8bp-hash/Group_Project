@@ -1,0 +1,6 @@
+pandas
+numpy
+scikit-learn
+customtkinter
+pillow
+opencv-python-headless

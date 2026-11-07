@@ -1,0 +1,30 @@
+{
+  "Super Admin": {
+    "username": "Super Admin",
+    "password": "199199",
+    "role": "Super Admin",
+    "approved": true,
+    "created_at": "2026-11-06 00:00:00"
+  },
+  "Phyo Super Admin": {
+    "username": "Phyo Super Admin",
+    "password": "199199",
+    "role": "Super Admin",
+    "approved": true,
+    "created_at": "2026-11-06 22:24:41"
+  },
+  "Phyo": {
+    "username": "Phyo",
+    "password": "123456",
+    "role": "Admin",
+    "approved": true,
+    "created_at": "2026-11-06 22:41:59"
+  },
+  "Thiha": {
+    "username": "Thiha",
+    "password": "123456",
+    "role": "User",
+    "approved": true,
+    "created_at": "2026-11-06 23:33:45"
+  }
+}
