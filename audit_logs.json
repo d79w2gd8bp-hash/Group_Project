@@ -880,5 +880,377 @@
     "username": "Thiha",
     "action": "query",
     "details": "Role: User | ၀၉၈၇၉၇ -> အမည်: ဒေါ်အိအိဖြူ\nအဘအမည်: ဦးလှနိုင်\nမှတ်ပုံတင်အမှတ်: ၁၂/ဗဟန(နိုင်)၀၉၈၇၉၇\nမဲပေးမှုအခြေအနေ: ပြီး\nမဲစာရင်းအမှတ်: ၁၂၃၀"
+  },
+  {
+    "timestamp": "2026-11-09 19:44:38",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 19:45:20",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 19:45:53",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 19:48:10",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: F:/AI Engineering Level 1/Group_Project/vp-150.csv"
+  },
+  {
+    "timestamp": "2026-11-09 19:48:38",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 19:48:50",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | ဖြိုးသီဟ -> အမည်: ဦးဖြိုးသီဟ\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၆-၉-၁၉၈၈\nမှတ်ပုံတင်အမှတ်: ၁၂/ဗဟန(နိုင်)၀၉၈၄၃၆\nအဘအမည်: ဦးတင့်ဝေ\nအမိအမည်: ဒေါ်စိန်တင်\nအမြဲတမ်းနေရပ်လိပ်စာ: ဘီ-၂၃၊\nလူမျိုး: ဗမာ\nမဲစာရင်းအမှတ်: ၁၂၃၃\nမဲပေးမှုအခြေအနေ: ပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -\nလက်မှတ်: -"
+  },
+  {
+    "timestamp": "2026-11-09 20:19:45",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 20:20:11",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 20:20:37",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 20:23:44",
+    "username": "Tester",
+    "action": "card_check",
+    "details": "Role: User | Source: fake1 | auto"
+  },
+  {
+    "timestamp": "2026-11-09 20:36:18",
+    "username": "Super Admin",
+    "action": "login_failed",
+    "details": "Invalid credentials"
+  },
+  {
+    "timestamp": "2026-11-09 20:36:21",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 20:36:54",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 21:00:50",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 21:01:05",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 21:01:25",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 21:04:11",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 21:04:59",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 21:07:31",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 21:35:39",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 21:35:45",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: F:/AI Engineering Level 1/Group_Project/Voter_data.csv"
+  },
+  {
+    "timestamp": "2026-11-09 21:35:57",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | 098436 -> အမည်: ဦးဖြိုးသီဟ\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၉-၆-၁၉၈၈\nအသက်: ၃၈\nမှတ်ပုံတင်အမှတ်: ၁၂/ဗဟန(နိုင်)၀၉၈၄၃၆\nအဘအမည်: ဦးတင့်ဝေ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၃၉၇)၊ ရန်ကုန်-မန္တလေးလမ်းဟောင်း၊ ပေါက်မြိုင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: ပျဉ်းမနားမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁၀)\nမဲစာရင်းအမှတ်: ၁၆၆၇\nမဲပေးမှုအခြေအနေ: ပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 21:36:09",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | သန်းသန်း"
+  },
+  {
+    "timestamp": "2026-11-09 21:36:16",
+    "username": "Super Admin",
+    "action": "selection",
+    "details": "Role: Super Admin | ဦးနိုင်တင် | ၁၅/လဝန(နိုင်)၄၄၈၇၉၄"
+  },
+  {
+    "timestamp": "2026-11-09 21:36:33",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 21:54:20",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 22:02:56",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:09:02",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:16:21",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 22:16:44",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: F:/AI Engineering Level 1/Group_Project/Voter_data.csv"
+  },
+  {
+    "timestamp": "2026-11-09 22:17:00",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | 098436 -> အမည်: ဦးဖြိုးသီဟ\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၉-၆-၁၉၈၈\nအသက်: ၃၈\nမှတ်ပုံတင်အမှတ်: ၁၂/ဗဟန(နိုင်)၀၉၈၄၃၆\nအဘအမည်: ဦးတင့်ဝေ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၃၉၇)၊ ရန်ကုန်-မန္တလေးလမ်းဟောင်း၊ ပေါက်မြိုင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: ပျဉ်းမနားမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁၀)\nမဲစာရင်းအမှတ်: ၁၆၆၇\nမဲပေးမှုအခြေအနေ: ပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:17:14",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | ကြူကြူ -> အမည်: ဒေါ်ကြူကြူ\nကျား/မ: မ\nမွေးသက္ကရာဇ်: ၂၃-၃-၁၉၈၆\nအသက်: ၄၀\nမှတ်ပုံတင်အမှတ်: ၈/စလန(နိုင်)၁၂၆၆၂၇\nအဘအမည်: ဦးဖိုးဝဲ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၄၁၆)၊ စက်ရုံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: ပျဉ်းမနားမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁၀)\nမဲစာရင်းအမှတ်: ၁၁၁၆\nမဲပေးမှုအခြေအနေ: ပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:17:40",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-09 22:26:10",
+    "username": "Super Admin",
+    "action": "selection",
+    "details": "Role: Super Admin | ဦးစိန်နိုင် | ၁၅/လဝန(နိုင်)၂၉၉၃၉၉"
+  },
+  {
+    "timestamp": "2026-11-09 22:26:50",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-09 22:29:10",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:30:57",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:32:57",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:38:11",
+    "username": "Tester",
+    "action": "query",
+    "details": "Role: Admin | ဦးစိန်သန်းနိုင် -> အမည်: ဦးစိန်သန်းနိုင်\nကျား/မ: ကျား\nမွေးသက္ကရာဇ်: ၀၆-၀၄-၁၉၉၇\nအသက်: ၂၉\nမှတ်ပုံတင်အမှတ်: ၁၂/လမတ(နိုင်)၃၆၅၅၆၀\nအဘအမည်: ဦးစန္ဒာယဉ်နီ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၈၂)၊ ပန်းခြံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: လယ်ဝေးမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁)\nမဲစာရင်းအမှတ်: ၁၄၂၄\nမဲပေးမှုအခြေအနေ: မပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-09 22:39:27",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 10:51:36",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 10:52:01",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: D:/AI Engineering/Group_Project_9-11-2026/Group_Project/vp-150.csv"
+  },
+  {
+    "timestamp": "2026-11-10 10:52:30",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 10:53:20",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: D:/AI Engineering/Group_Project_9-11-2026/Group_Project/Voter_data.xlsx"
+  },
+  {
+    "timestamp": "2026-11-10 10:54:44",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Tun Hlaing Oo1.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 10:55:03",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 10:55:45",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 10:55:55",
+    "username": "Super Admin",
+    "action": "query",
+    "details": "Role: Super Admin | ကြူ -> အမည်: ဒေါ်ကြူကြူ\nကျား/မ: မ\nမွေးသက္ကရာဇ်: ၂၃-၃-၁၉၈၆\nအသက်: ၄၀\nမှတ်ပုံတင်အမှတ်: ၈/စလန(နိုင်)၁၂၆၆၂၇\nအဘအမည်: ဦးဖိုးဝဲ\nအမြဲတမ်းနေရပ်လိပ်စာ: အမှတ်(၄၁၆)၊ စက်ရုံလမ်း၊ သပြေပင်ရပ်ကွက်၊ လယ်ဝေးမြို့နယ်။\nဆန္ဒမဲပေးမည့်မြို့နယ်: ပျဉ်းမနားမြို့နယ်\nမဲရုံအမှတ်: မဲရုံအမှတ် (၁၀)\nမဲစာရင်းအမှတ်: ၁၁၁၆\nမဲပေးမှုအခြေအနေ: ပြီး\nပြစ်မှုမှတ်တမ်း: မရှိ\nမှတ်ချက်: -"
+  },
+  {
+    "timestamp": "2026-11-10 11:10:58",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 11:11:16",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: U Phyo Thiha.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 11:11:28",
+    "username": "Super Admin",
+    "action": "card_check",
+    "details": "Role: Super Admin | Source: Daw Kyu Kyu.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 11:19:48",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 11:20:11",
+    "username": "Super Admin",
+    "action": "logout",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 11:21:37",
+    "username": "Ko Phyo",
+    "action": "signup",
+    "details": "Role: User"
+  },
+  {
+    "timestamp": "2026-11-10 11:21:40",
+    "username": "Ko Phyo",
+    "action": "login_success",
+    "details": "Role: User"
+  },
+  {
+    "timestamp": "2026-11-10 11:21:57",
+    "username": "Ko Phyo",
+    "action": "card_check",
+    "details": "Role: User | Source: Daw Kyu Kyu.jpg"
+  },
+  {
+    "timestamp": "2026-11-10 11:22:18",
+    "username": "Ko Phyo",
+    "action": "logout",
+    "details": "Role: User"
+  },
+  {
+    "timestamp": "2026-11-10 11:22:26",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 11:22:50",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: D:/AI Engineering/Group_Project_9-11-2026/Group_Project/Voter_data.xlsx"
+  },
+  {
+    "timestamp": "2026-11-10 15:24:24",
+    "username": "Super Admin",
+    "action": "login_success",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 15:24:49",
+    "username": "Kyu Kyu",
+    "action": "account_create",
+    "details": "Role: Super Admin"
+  },
+  {
+    "timestamp": "2026-11-10 15:25:30",
+    "username": "Super Admin",
+    "action": "training",
+    "details": "Role: Super Admin | Dataset file: D:/AI Engineering/Group_Project_9-11-2026/Group_Project/Voter_data.xlsx"
   }
 ]

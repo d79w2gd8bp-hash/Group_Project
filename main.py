@@ -1,9 +1,14 @@
+import base64
 import json
+import os
 import pickle
 import re
 import unicodedata
 import shutil
 import subprocess
+import sys
+import threading
+import urllib.request
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -12,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import cv2
 import numpy as np
 import pandas as pd
-from customtkinter import CTk, CTkButton, CTkEntry, CTkFrame, CTkLabel, CTkOptionMenu, CTkScrollableFrame, CTkTextbox, CTkToplevel, set_appearance_mode, set_default_color_theme
+from customtkinter import ThemeManager, set_widget_scaling, CTk, CTkButton, CTkImage, CTkEntry, CTkFrame, CTkLabel, CTkOptionMenu, CTkScrollableFrame, CTkTextbox, CTkToplevel, set_appearance_mode, set_default_color_theme
 from PIL import Image, ImageTk
 from sklearn.cluster import KMeans
 from sklearn.compose import ColumnTransformer
@@ -22,17 +27,156 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from tkinter import filedialog, messagebox, ttk
+import tkinter as tk
+import tkinter.font as tkfont
+
+import card_fields
+import dashboard
 
 APP_TITLE = "ဆန္ဒမဲပေးခြင်း ပြီးစီးမှု အခြေအနေ စိစစ်ခြင်း"
 WINDOW_TITLE = "မဲစာရင်း စိစစ်ရေးစနစ်"
-UI_FONT_FAMILY = "Myanmar Text"
+UI_FONT_FAMILY = "Pyidaungsu"
 PROJECT_ROOT = Path(__file__).resolve().parent
-DATASET_PATH = PROJECT_ROOT / "vp-150.csv"
+FONT_DIR = PROJECT_ROOT / "fonts"
+
+
+def register_bundled_fonts():
+    """Load the Pyidaungsu .ttf files shipped in ./fonts for this process only, so the app
+    shows the right font on PCs where Pyidaungsu is not installed."""
+    if sys.platform != "win32" or not FONT_DIR.exists():
+        return
+    import ctypes
+    for font_file in FONT_DIR.glob("*.ttf"):
+        ctypes.windll.gdi32.AddFontResourceExW(str(font_file), 0x10, 0)  # 0x10 = FR_PRIVATE
+
+
+register_bundled_fonts()
+
+
+SETTINGS_PATH = PROJECT_ROOT / "ui_settings.json"
+ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.7, 1.6, 0.1
+
+
+def load_ui_zoom() -> float:
+    try:
+        zoom = float(json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("zoom", 1.0))
+    except (OSError, ValueError, AttributeError):
+        zoom = 1.0
+    return min(ZOOM_MAX, max(ZOOM_MIN, zoom))
+
+
+def save_ui_zoom(zoom: float):
+    try:
+        SETTINGS_PATH.write_text(json.dumps({"zoom": round(zoom, 2)}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+class WindowShortcuts:
+    """Keyboard / mouse shortcuts for a window:
+    Ctrl+Enter maximise, Esc restore size, Ctrl + "+"/"-" or Ctrl + mouse wheel zoom, Ctrl+0 reset zoom."""
+
+    def __init__(self, window: Any, on_escape: Optional[Any] = None, on_zoom: Optional[Any] = None):
+        self.window, self.on_escape, self.on_zoom = window, on_escape, on_zoom
+        self.zoom = load_ui_zoom()
+        self._pending: Optional[float] = None
+        self._apply_job = None
+        self._toast = None
+        self._toast_job = None
+        bind = window.bind
+        for sequence in ("<Control-Return>", "<Control-KP_Enter>"):
+            bind(sequence, self.maximize)
+        bind("<Escape>", self.escape)
+        for sequence in ("<Control-plus>", "<Control-equal>", "<Control-KP_Add>"):
+            bind(sequence, lambda _e: self.step(1))
+        for sequence in ("<Control-minus>", "<Control-underscore>", "<Control-KP_Subtract>"):
+            bind(sequence, lambda _e: self.step(-1))
+        for sequence in ("<Control-Key-0>", "<Control-KP_0>", "<Control-KP_Insert>"):
+            bind(sequence, lambda _e: self.set_zoom(1.0))
+        bind("<Control-MouseWheel>", lambda event: self.step(1 if event.delta > 0 else -1))
+
+    def maximize(self, _event=None):
+        self.window.state("zoomed")
+        return "break"
+
+    def escape(self, _event=None):
+        if self.on_escape and self.on_escape():
+            return "break"
+        if self.window.state() == "zoomed":
+            self.window.state("normal")
+        return "break"
+
+    def step(self, direction: int):
+        current = self._pending if self._pending is not None else self.zoom
+        return self.set_zoom(current + direction * ZOOM_STEP)
+
+    def set_zoom(self, value: float):
+        value = round(min(ZOOM_MAX, max(ZOOM_MIN, value)), 2)
+        self._pending = value
+        self._show_toast(value)
+        if self._apply_job:
+            self.window.after_cancel(self._apply_job)
+        # Wait for the wheel to stop so the (heavy) re-layout happens once.
+        self._apply_job = self.window.after(140, self._apply)
+        return "break"
+
+    def _apply(self):
+        self._apply_job = None
+        value, self._pending = self._pending, None
+        if value is None or value == self.zoom:
+            return
+        self.zoom = value
+        set_widget_scaling(value)
+        save_ui_zoom(value)
+        if self.on_zoom:
+            self.on_zoom(value)
+        self.window.after(60, self._repaint)
+
+    def _repaint(self):
+        """After shrinking, areas no widget covers any more can keep old pixels; repaint the whole window."""
+        if sys.platform != "win32" or not self.window.winfo_exists():
+            return
+        import ctypes
+        hwnd = int(self.window.wm_frame(), 16)
+        # RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW
+        ctypes.windll.user32.RedrawWindow(hwnd, None, None, 0x0001 | 0x0004 | 0x0080 | 0x0100)
+
+    def _show_toast(self, value: float):
+        if self._toast is None or not self._toast.winfo_exists():
+            self._toast = CTkLabel(
+                self.window, text="", corner_radius=10, fg_color="#1E293B", text_color="#F8FAFC",
+                font=(UI_FONT_FAMILY, 15, "bold"), padx=18, pady=8,
+            )
+        self._toast.configure(text=burmese_display(f"{int(round(value * 100))}%"))
+        self._toast.place(relx=0.5, rely=0.04, anchor="n")
+        self._toast.lift()
+        if self._toast_job:
+            self.window.after_cancel(self._toast_job)
+        self._toast_job = self.window.after(1200, self._toast.place_forget)
+
+
+def apply_app_fonts(window: Any):
+    """Use Pyidaungsu everywhere, including widgets created without an explicit font."""
+    ThemeManager.theme["CTkFont"]["family"] = UI_FONT_FAMILY
+    for name in ("TkDefaultFont", "TkTextFont", "TkFixedFont", "TkMenuFont", "TkHeadingFont",
+                 "TkCaptionFont", "TkSmallCaptionFont", "TkIconFont", "TkTooltipFont"):
+        try:
+            tkfont.nametofont(name, root=window).configure(family=UI_FONT_FAMILY)
+        except tk.TclError:
+            pass
+
+
+DATASET_PATH = PROJECT_ROOT / "Voter_data.csv"
+if not DATASET_PATH.exists():  # fall back to the older sample file
+    DATASET_PATH = PROJECT_ROOT / "vp-150.csv"
 MODEL_PATH = PROJECT_ROOT / "voter_model.pkl"
 ACCOUNTS_PATH = PROJECT_ROOT / "accounts.json"
 LOG_PATH = PROJECT_ROOT / "audit_logs.json"
 ICON_PATH = PROJECT_ROOT / "ECU.ico"
 LOGIN_LOGO_PATH = PROJECT_ROOT / "ECU.png"
+# Local vision model (Ollama) used to read the card handwriting. Disabled: qwen2.5vl:3b misread the
+# Myanmar handwriting in tests and took ~5 min per field on CPU. Set e.g. "qwen2.5vl:7b" to try on a GPU PC.
+OLLAMA_DEFAULT_MODEL = ""
 
 UI_COLORS = {
     "background": "#0B1120",
@@ -121,6 +265,36 @@ BURMESE_DIGITS = {
     "၀": "0", "၁": "1", "၂": "2", "၃": "3", "၄": "4",
     "၅": "5", "၆": "6", "၇": "7", "၈": "8", "၉": "9",
 }
+
+
+# A Myanmar syllable starts at a consonant/independent vowel that is not stacked (after U+1039)
+# and does not carry asat/virama itself.
+_MM_SYLLABLE_START = re.compile(r"(?<!\u1039)(?=[\u1000-\u102A\u103F\u104C-\u104F](?![\u103A\u1039]))")
+
+
+def safe_text_runs(text: str, max_bytes: int = 120) -> List[str]:
+    """Split text into short runs at spaces/"၊"/"။" (and syllable boundaries if still long).
+
+    Tk on Windows draws a long run of text in ~200-byte pieces; when a piece boundary falls inside a
+    Myanmar syllable the vowel sign is drawn on its own with a dotted circle (e.g. "ဆေ◌း"). Drawing
+    each short run separately keeps every syllable intact."""
+    runs: List[str] = []
+    for piece in re.split(r"( +|(?<=[၊။]))", text):
+        if not piece:
+            continue
+        while len(piece.encode("utf-8")) > max_bytes:
+            cut = 0
+            for match in _MM_SYLLABLE_START.finditer(piece):
+                if match.start() and len(piece[:match.start()].encode("utf-8")) <= max_bytes:
+                    cut = match.start()
+                elif cut:
+                    break
+            if not cut:
+                break
+            runs.append(piece[:cut])
+            piece = piece[cut:]
+        runs.append(piece)
+    return runs
 
 
 def burmese_display(value: Any) -> str:
@@ -285,6 +459,12 @@ class VotingDataset:
             "ပြစ်မှုမှတ်တမ်း": "criminal_record",
             "Remark": "remark",
             "Sign": "sign",
+            # Voter_data.csv
+            "ပြစ်မှုမှတ်တမ်း ရှိ/မရှိ": "criminal_record",
+            "မှတ်ချက်": "remark",
+            "မဲရုံအမှတ်": "polling_station",
+            "အသက်": "age",
+            "ဆန္ဒမဲပေးမည့်မြို့နယ်": "township",
         }
         renamed = df.copy()
         renamed.columns = [mappings.get(str(col).strip(), str(col).strip()) for col in renamed.columns]
@@ -296,6 +476,7 @@ class VotingDataset:
             raise FileNotFoundError(f"Dataset not found: {source}")
         df = (pd.read_excel(source, dtype=str) if source.suffix.lower() in {".xlsx", ".xls"}
               else pd.read_csv(source, encoding="utf-8-sig", dtype=str)).fillna("")
+        df = df[(df.astype(str).apply(lambda col: col.str.strip()) != "").any(axis=1)].reset_index(drop=True)
         return self.rename_columns(df)
 
     def build_training_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -488,7 +669,144 @@ class OCRProcessor:
         output = result.stdout.decode("utf-8", "replace") if isinstance(result.stdout, bytes) else result.stdout
         return output.strip()
 
+    @staticmethod
+    def _load_gemini_key() -> str:
+        """API key from GEMINI_API_KEY / GOOGLE_API_KEY, or a local gemini_api_key.txt file."""
+        key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+        if not key:
+            key_file = Path(__file__).resolve().parent / "gemini_api_key.txt"
+            if key_file.exists():
+                key = key_file.read_text(encoding="utf-8").strip()
+        return key.strip()
+
+    def _extract_card_gemini(self, image_path: str) -> Optional[Dict[str, Any]]:
+        """Read the card with Gemini (handles Myanmar handwriting). Returns None if unavailable/failed."""
+        api_key = self._load_gemini_key()
+        if not api_key:
+            return None
+        try:
+            from google import genai
+            from google.genai import types
+
+            image = cv2.imread(str(image_path))
+            if image is None:
+                return None
+            height, width = image.shape[:2]
+            scale = 1600 / max(height, width)
+            if scale < 1:
+                image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+            ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            if not ok:
+                return None
+
+            prompt = (
+                "ဤပုံသည် မြန်မာနိုင်ငံသား စိစစ်ရေးကတ် (NRC) ဖြစ်သည်။ လက်ရေးနှင့် ပုံနှိပ်စာ နှစ်မျိုးလုံး ဖြစ်နိုင်သည်။\n"
+                "အောက်ပါ အချက်သုံးခုကို ကတ်ပေါ်တွင် ရေးထားသည့်အတိုင်း Unicode မြန်မာစာဖြင့် ထုတ်ပေးပါ။\n"
+                "- name: အမည်\n- father_name: အဘအမည် / ဖခင်အမည်\n"
+                "- id_number: ကတ်အမှတ် (ဥပမာ ၁၂/ကမန(နိုင်)၁၂၃၄၅၆) ကို နေရာလွတ်မပါဘဲ\n"
+                "ဖတ်မရသော အချက်ကို ခန့်မှန်းမရေးဘဲ \"\" (အလွတ်) ထားပါ။ စာလုံးအသစ် မဖန်တီးပါနှင့်။"
+            )
+            schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "name": {"type": "STRING"},
+                    "father_name": {"type": "STRING"},
+                    "id_number": {"type": "STRING"},
+                },
+                "required": ["name", "father_name", "id_number"],
+            }
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+                contents=[types.Part.from_bytes(data=encoded.tobytes(), mime_type="image/jpeg"), prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json", response_schema=schema, temperature=0,
+                ),
+            )
+            data = json.loads(response.text or "{}")
+            fields: Dict[str, str] = {}
+            for name in ("name", "father_name", "id_number"):
+                value = unicodedata.normalize("NFC", str(data.get(name) or ""))
+                value = re.sub(r"\s+", "" if name == "id_number" else " ", value).strip()
+                if value:
+                    fields[name] = value
+            if not fields:
+                return None
+            labels = {"name": "အမည်", "father_name": "ဖခင်အမည်", "id_number": "မှတ်ပုံတင်အမှတ်"}
+            raw_text = "\n".join(f"{labels[k]} : {v}" for k, v in fields.items())
+            return {"raw_text": raw_text, "fields": fields}
+        except Exception as exc:  # network/quota/API errors -> fall back to Tesseract
+            self.last_error = f"Gemini OCR မအောင်မြင်ပါ ({type(exc).__name__})"
+            return None
+
+    def _extract_card_ollama(self, crops: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Offline reader: a local vision model served by Ollama. Used automatically when Ollama is running
+        and the model has been pulled; OLLAMA_MODEL can override the model name ("" disables it)."""
+        model = os.environ.get("OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL).strip()
+        if not model or not crops:
+            return None
+        base_url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+        url = base_url + "/api/generate"
+        try:  # quick check so the app doesn't wait when Ollama is closed or the model is missing
+            with urllib.request.urlopen(base_url + "/api/tags", timeout=3) as response:
+                installed = {m.get("name", "") for m in json.loads(response.read().decode("utf-8")).get("models", [])}
+        except Exception:
+            self.last_error = "Ollama ဖွင့်မထားပါ။ (Start menu > Ollama)"
+            return None
+        if model not in installed and f"{model}:latest" not in installed:
+            self.last_error = f"Ollama model '{model}' မရှိသေးပါ။ 'ollama pull {model}' ကို run ပါ။"
+            return None
+        prompts = {
+            "name": "ဤပုံထဲက လက်ရေး မြန်မာစာ (လူအမည်) ကို Unicode ဖြင့် ဖတ်ပြပါ။ စာသားသာ ပြန်ပါ။",
+            "father_name": "ဤပုံထဲက လက်ရေး မြန်မာစာ (ဖခင်အမည်) ကို Unicode ဖြင့် ဖတ်ပြပါ။ စာသားသာ ပြန်ပါ။",
+            "id_number": "ဤပုံထဲက မြန်မာ NRC အမှတ် (ဥပမာ ၁၂/ကမန(နိုင်)၁၂၃၄၅၆) ကို ဖတ်ပြပါ။ စာသားသာ ပြန်ပါ။",
+        }
+        fields: Dict[str, str] = {}
+        try:
+            for key, crop in crops.items():
+                # Small images = far fewer vision tokens = much faster on CPU (~1 token per 28x28 px).
+                scale = min(1.0, 560 / max(1, crop.shape[1]))
+                small = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else crop
+                ok, encoded = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                if not ok:
+                    continue
+                payload = json.dumps({
+                    "model": model, "prompt": prompts[key], "stream": False,
+                    "images": [base64.b64encode(encoded.tobytes()).decode("ascii")],
+                    "options": {"temperature": 0, "num_predict": 60},
+                }).encode("utf-8")
+                request = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(request, timeout=300) as response:
+                    value = json.loads(response.read().decode("utf-8")).get("response", "")
+                value = re.sub(r"\s+", "" if key == "id_number" else " ", unicodedata.normalize("NFC", value)).strip()
+                if value:
+                    fields[key] = value
+        except Exception:  # Ollama not running / model missing -> manual review with crops
+            return None
+        if not fields:
+            return None
+        labels = {"name": "အမည်", "father_name": "ဖခင်အမည်", "id_number": "မှတ်ပုံတင်အမှတ်"}
+        return {"raw_text": "\n".join(f"{labels[k]} : {v}" for k, v in fields.items()), "fields": fields}
+
     def extract_card(self, image_path: str) -> Dict[str, Any]:
+        """Read a card. Always returns raw_text, fields and crops (cropped handwriting images for review)."""
+        self.last_error = ""
+        image = cv2.imread(str(image_path))
+        try:
+            crops = card_fields.crop_fields(image) if image is not None else {}
+        except cv2.error:
+            crops = {}
+        result = (
+            self._extract_card_gemini(image_path)
+            or self._extract_card_ollama(crops)
+            # Tesseract cannot read this handwriting; only use it when the card layout wasn't found.
+            or (None if crops else self._extract_card_tesseract(image_path))
+            or {"raw_text": "", "fields": {}}
+        )
+        result["crops"] = crops
+        return result
+
+    def _extract_card_tesseract(self, image_path: str) -> Dict[str, Any]:
         self.last_error = ""
         if not self.tesseract:
             self.last_error = "မြန်မာစာ OCR အတွက် Tesseract နှင့် mya language data ထည့်သွင်းရန်လိုပါသည်။"
@@ -726,11 +1044,14 @@ class VoterQueryEngine:
             ("အမည်", "name"),
             ("ကျား/မ", "gender"),
             ("မွေးသက္ကရာဇ်", "date_of_birth"),
+            ("အသက်", "age"),
             ("မှတ်ပုံတင်အမှတ်", "id_number"),
             ("အဘအမည်", "father_name"),
             ("အမိအမည်", "mother_name"),
             ("အမြဲတမ်းနေရပ်လိပ်စာ", "address"),
             ("လူမျိုး", "ethnicity"),
+            ("ဆန္ဒမဲပေးမည့်မြို့နယ်", "township"),
+            ("မဲရုံအမှတ်", "polling_station"),
             ("မဲစာရင်းအမှတ်", "voter_no"),
             ("မဲပေးမှုအခြေအနေ", "vote_status"),
             ("ပြစ်မှုမှတ်တမ်း", "criminal_record"),
@@ -738,32 +1059,54 @@ class VoterQueryEngine:
             ("လက်မှတ်", "sign"),
         )
         fields = admin_fields if role.lower() in {"admin", "super admin"} else user_fields
-        lines = [f"{label}: {safe_get(row, key, label)}" for label, key in fields]
+        # Skip columns the loaded data file does not have; show "-" for blank values.
+        fields = tuple((label, key) for label, key in fields if key in row.index or label in row.index)
+        lines = [f"{label}: {str(safe_get(row, key, label)).strip() or '-'}" for label, key in fields]
         return burmese_display("\n".join(lines))
 
     def evaluate_card(self, fields: Dict[str, str], role: str = "User") -> Dict[str, Any]:
-        labels = {"name": "အမည်", "father_name": "ဖခင်အမည်", "id_number": "မှတ်ပုံတင်အမှတ်"}
-        missing = [label for key, label in labels.items() if not fields.get(key)]
-        if missing:
-            return {"reply": "ဖတ်မရသောအချက်များ: " + "၊ ".join(missing) + "။ ကြည်လင်သောကတ်ပုံကို ပြန်တင်ပါ။"}
-        candidates = self.dataset[self.dataset["id_number"].map(canonical_field) == canonical_field(fields["id_number"])]
-        if candidates.empty:
-            return {"reply": "မှတ်ပုံတင်အမှတ်နှင့် ကိုက်ညီသောမှတ်တမ်း မတွေ့ပါ။"}
-        reports = []
-        verified = []
-        for _, row in candidates.iterrows():
-            checks = {key: canonical_field(fields[key]) == canonical_field(row.get(key, "")) for key in labels}
-            if all(checks.values()):
-                verified.append(row)
-            reports.append("\n".join(f"{label}: {fields[key]} — {'ကိုက်ညီ' if checks[key] else 'မကိုက်ညီ'}" for key, label in labels.items()))
-        if len(verified) == 1:
-            row = verified[0]
-            reply = "အချက်သုံးချက်လုံး ကိုက်ညီပါသည်။\n" + self.format_candidate(row, role)
-        elif len(verified) > 1:
-            reply = "ကိုက်ညီသောမှတ်တမ်း တစ်ခုထက်ပိုရှိနေပါသည်။ datafile ကို စစ်ဆေးပါ။"
-        else:
-            reply = "အချက်အလက် မကိုက်ညီပါ။\n" + "\n\n".join(reports)
-        return {"reply": burmese_display(reply)}
+        """Find the voter record for a card (NRC number first, then name/father name) and
+        return the same result shape as evaluate_query, so the normal voting-status reply is shown."""
+        name = fields.get("name", "").strip()
+        father = fields.get("father_name", "").strip()
+        id_number = fields.get("id_number", "").strip()
+        if not (name or father or id_number):
+            return {"status": "no_match", "message": "အမည်၊ ဖခင်အမည် သို့မဟုတ် မှတ်ပုံတင်အမှတ် တစ်ခုခု ဖြည့်ပါ။"}
+
+        matches: List[Dict[str, Any]] = []
+        if id_number:
+            matches = self.extract_matches(id_number)
+        if not matches and name:
+            matches = self.extract_matches(name)
+        if not matches and father:
+            matches = self.extract_matches(father)
+
+        # Several rows share the number/name: keep those that also agree on the other card fields.
+        if len(matches) > 1:
+            def similar(left: str, right: str) -> float:
+                return SequenceMatcher(None, canonical_field(left), canonical_field(right)).ratio()
+
+            def score(match: Dict[str, Any]) -> float:
+                total = 0.0
+                if name:
+                    total += similar(name, match["name"])
+                if father:
+                    total += similar(father, match["father_name"])
+                return total
+
+            if name or father:
+                ranked = sorted(matches, key=score, reverse=True)
+                best = score(ranked[0])
+                narrowed = [m for m in ranked if score(m) >= best - 0.05]
+                if len(narrowed) < len(matches):
+                    matches = narrowed
+
+        if not matches:
+            return {"status": "no_match", "message": "ကတ်ပေါ်ရှိ အချက်အလက်နှင့် ကိုက်ညီသော မဲစာရင်းမှတ်တမ်း မတွေ့ရှိပါ။"}
+        if len(matches) > 1:
+            return {"status": "multiple_matches", "matches": matches, "message": "အချက်အလက်များစွာ တူညီမှုရှိသည်။"}
+        row = self.dataset.loc[matches[0]["row_index"]]
+        return {"status": "match", "candidate": row.to_dict(), "reply": self.format_candidate(row, role)}
 
     def evaluate_query(self, raw_query: str, role: str = "User") -> Dict[str, Any]:
         matches = self.extract_matches(raw_query)
@@ -789,6 +1132,9 @@ class VotingApp(CTk):
         apply_window_icon(self)
         set_appearance_mode("dark")
         set_default_color_theme("blue")
+        apply_app_fonts(self)
+        self.shortcuts = WindowShortcuts(self, on_escape=self._escape_pressed, on_zoom=self._apply_zoom_extras)
+        set_widget_scaling(self.shortcuts.zoom)
         self.configure(fg_color=UI_COLORS["background"])
         self.window_width, self.window_height = fit_window_to_screen(
             self, 1500, 900, 1080, 680, horizontal_margin=40, vertical_margin=80
@@ -799,6 +1145,7 @@ class VotingApp(CTk):
         self.dataset_manager = VotingDataset(PROJECT_ROOT)
         self.model_manager = ModelManager(MODEL_PATH)
         self.current_dataset = self._load_default_dataset()
+        self.current_dataset_name = DATASET_PATH.name
         self.query_engine = VoterQueryEngine(self.current_dataset, self.model_manager)
         self.ocr = OCRProcessor()
         self.current_username = username.strip() or "Guest"
@@ -806,7 +1153,35 @@ class VotingApp(CTk):
         self.logout_requested = False
 
         self._build_ui()
+        self._apply_zoom_extras(self.shortcuts.zoom)
         start_fade_in(self)
+
+    def _escape_pressed(self) -> bool:
+        """Esc first closes the duplicate-name chooser; otherwise the window is restored."""
+        if getattr(self, "choice_frame", None) is not None:
+            self._cancel_match_choices()
+            return True
+        return False
+
+    def _apply_zoom_extras(self, zoom: float):
+        """Scale the parts CustomTkinter does not scale itself (raw Tk text tags, dashboard canvases)."""
+        for key, base in (("label", 11), ("bold", 14), ("normal", 14)):
+            self._msg_fonts[key].configure(size=max(6, round(base * zoom)))
+        self.message_box._textbox.configure(tabs=(f"{round(205 * zoom)}p", f"{round(230 * zoom)}p"))
+        self.dashboard_page.set_zoom(zoom)
+        # CustomTkinter does not always redraw every widget after the scaling shrinks; re-mapping the
+        # content area forces a clean redraw (same effect as switching pages).
+        self.after(40, self._remap_content)
+
+    def _remap_content(self):
+        if not self.winfo_exists():
+            return
+        page = self.current_page
+        widgets = [self.dashboard_page] if page == "dashboard" else [self.chat_tab, self.info_panel]
+        for widget in widgets:
+            widget.grid_remove()
+        # Give Tk one event-loop turn with the page unmapped, then show it again.
+        self.after(30, lambda: self._show_page(page, animate=False))
 
     def _load_default_dataset(self) -> pd.DataFrame:
         try:
@@ -838,6 +1213,16 @@ class VotingApp(CTk):
 
         self.container = CTkFrame(self, corner_radius=0, fg_color=UI_COLORS["background"])
         self.container.grid(row=0, column=0, sticky="nsew", padx=18, pady=18)
+
+        self.footer = CTkFrame(self, fg_color=UI_COLORS["surface"], corner_radius=0)
+        self.footer.grid(row=1, column=0, sticky="ew")
+        self.footer.grid_columnconfigure(0, weight=1)
+        CTkLabel(
+            self.footer,
+            text="Developed by Phyo Thiha | Version 0.0.1 | 9/11/2026 | Group1 Project |",
+            font=(UI_FONT_FAMILY, 12),
+            text_color=UI_COLORS["muted"],
+        ).grid(row=0, column=0, padx=18, pady=6, sticky="ew")
         self.container.grid_columnconfigure(1, weight=1)
         self.container.grid_rowconfigure(1, weight=1)
 
@@ -885,7 +1270,7 @@ class VotingApp(CTk):
         self.sidebar.grid(row=1, column=0, sticky="nsew", padx=(0, 12), pady=0)
         self.sidebar.grid_columnconfigure(0, weight=1)
         CTkLabel(
-            self.sidebar, text="စနစ်မီနူး", font=(UI_FONT_FAMILY, 15, "bold"),
+            self.sidebar, text="Menu", font=(UI_FONT_FAMILY, 15, "bold"),
             text_color=UI_COLORS["text"], anchor="w",
         ).grid(row=0, column=0, sticky="ew", padx=16, pady=(20, 12))
 
@@ -905,8 +1290,20 @@ class VotingApp(CTk):
         self.info_panel.grid_columnconfigure(0, weight=1)
         self.info_panel.grid_rowconfigure(2, weight=1)
 
+        self.dashboard_page = dashboard.DashboardView(
+            self.container, colors=UI_COLORS, family=UI_FONT_FAMILY,
+            get_dataset=lambda: self.current_dataset,
+            get_source_name=lambda: self.current_dataset_name,
+            role=self.role_var,
+        )
+        self.current_page = "chat"
+        self.page_buttons: Dict[str, CTkButton] = {}
+
         self.sidebar_buttons = []
-        navigation = [("စိစစ်မေးမြန်းရန်", self._focus_chat)]
+        navigation = [
+            ("Dashboard", lambda: self._show_page("dashboard")),
+            ("စိစစ်မေးမြန်းရန်", self._focus_chat),
+        ]
         if self.role_var in {"Admin", "Super Admin"}:
             navigation.extend([
                 ("Model လေ့ကျင့်ရန်", self._train_model),
@@ -925,6 +1322,10 @@ class VotingApp(CTk):
             )
             btn.grid(row=i, column=0, sticky="ew", padx=12, pady=6)
             self.sidebar_buttons.append(btn)
+            if i == 1:
+                self.page_buttons["dashboard"] = btn
+            elif i == 2:
+                self.page_buttons["chat"] = btn
 
         title_area = CTkFrame(self.chat_tab, fg_color="transparent")
         title_area.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 10))
@@ -950,13 +1351,14 @@ class VotingApp(CTk):
         self._typing_active = False
         self._typing_delay_ms = 14
         self._danger_bar_counter = 0
+        self._run_parity = 0
+        self._run_bytes = 0
+        self._last_char = "\n"
         self._configure_message_tags()
-        self.message_box.insert(
-            "end",
+        self._insert_message_text(
             "မဲဆန္ဒရှင်အမည်၊ မှတ်ပုံတင်အမှတ် သို့မဟုတ် အဘအမည်ကို ရိုက်ထည့်ပြီး စစ်ဆေးနိုင်ပါသည်။\n",
             "field_data",
         )
-        self.message_box.configure(state="disabled")
 
         self.choice_frame = None
         self.choice_buttons: List[CTkButton] = []
@@ -1008,14 +1410,40 @@ class VotingApp(CTk):
         self._bind_tab_order(
             [self.input_entry, self.plus_button, self.send_button, self.logout_button] + self.sidebar_buttons
         )
-        self.after(150, self.input_entry.focus_set)
+        # Admins land on the dashboard; polling-station users go straight to the voter check.
+        self._show_page("dashboard" if self.role_var in {"Admin", "Super Admin"} else "chat")
+
+    def _show_page(self, page: str, animate: bool = True):
+        """Switch between the dashboard and the voter-check (chat) page."""
+        self.current_page = page
+        if page == "dashboard":
+            self.chat_tab.grid_remove()
+            self.info_panel.grid_remove()
+            self.dashboard_page.grid(row=1, column=1, columnspan=2, sticky="nsew")
+            if animate:
+                self.dashboard_page.refresh()
+            else:
+                self.dashboard_page.redraw_all()
+        else:
+            self.dashboard_page.grid_remove()
+            self.chat_tab.grid()
+            self.info_panel.grid()
+            self.after(120, self.input_entry.focus_set)
+        for name, button in self.page_buttons.items():
+            active = name == page
+            button.configure(
+                fg_color=UI_COLORS["primary"] if active else UI_COLORS["surface_alt"],
+                border_color="#93C5FD" if active else UI_COLORS["border"],
+            )
 
     def _logout(self):
         self.audit_logger.log("logout", self.current_username, f"Role: {self.role_var}")
         self.logout_requested = True
         self.destroy()
 
-    def _submit_from_enter(self, _event=None):
+    def _submit_from_enter(self, event=None):
+        if event is not None and event.state & 0x4:  # Ctrl+Enter = maximise window
+            return None
         self._handle_chat_submit()
         return "break"
 
@@ -1032,7 +1460,7 @@ class VotingApp(CTk):
             widget.bind("<Tab>", focus_target(active[(index + 1) % len(active)]))
             widget.bind("<Shift-Tab>", focus_target(active[(index - 1) % len(active)]))
             if isinstance(widget, CTkButton):
-                widget.bind("<Return>", lambda _event, button=widget: (button.invoke(), "break")[1])
+                widget.bind("<Return>", lambda event, button=widget: None if event.state & 0x4 else (button.invoke(), "break")[1])
                 widget.bind("<space>", lambda _event, button=widget: (button.invoke(), "break")[1])
 
     def _role_changed(self, role: str):
@@ -1043,29 +1471,37 @@ class VotingApp(CTk):
         # Fixed tab stops keep Title, separator and Data aligned even when title
         # lengths differ. The values are Tk screen distances (points).
         self.message_box._textbox.configure(tabs=("205p", "230p"))
+        # Named fonts so Ctrl +/- zoom can resize all chat text at once.
+        self._msg_fonts = {
+            "label": tkfont.Font(root=self, family=UI_FONT_FAMILY, size=11, weight="bold"),
+            "bold": tkfont.Font(root=self, family=UI_FONT_FAMILY, size=14, weight="bold"),
+            "normal": tkfont.Font(root=self, family=UI_FONT_FAMILY, size=14),
+        }
         self.message_box._textbox.tag_configure(
-            "system_label", foreground=UI_COLORS["muted"], font=(UI_FONT_FAMILY, 11, "bold")
+            "system_label", foreground=UI_COLORS["muted"], font=self._msg_fonts["label"]
         )
         self.message_box._textbox.tag_configure(
-            "field_title", foreground=UI_COLORS["field_title"], font=(UI_FONT_FAMILY, 14, "bold")
+            "field_title", foreground=UI_COLORS["field_title"], font=self._msg_fonts["bold"]
         )
         self.message_box._textbox.tag_configure(
-            "field_separator", foreground=UI_COLORS["muted"], font=(UI_FONT_FAMILY, 14, "bold")
+            "field_separator", foreground=UI_COLORS["muted"], font=self._msg_fonts["bold"]
         )
         self.message_box._textbox.tag_configure(
-            "field_data", foreground=UI_COLORS["field_data"], font=(UI_FONT_FAMILY, 14)
+            "field_data", foreground=UI_COLORS["field_data"], font=self._msg_fonts["normal"]
         )
         self.message_box._textbox.tag_configure(
-            "status_complete", foreground=UI_COLORS["status_complete"], font=(UI_FONT_FAMILY, 14, "bold")
+            "status_complete", foreground=UI_COLORS["status_complete"], font=self._msg_fonts["bold"]
         )
         self.message_box._textbox.tag_configure(
-            "status_pending", foreground=UI_COLORS["status_pending"], font=(UI_FONT_FAMILY, 14, "bold")
+            "status_pending", foreground=UI_COLORS["status_pending"], font=self._msg_fonts["bold"]
         )
         self.message_box._textbox.tag_configure(
-            "status_danger", foreground=UI_COLORS["status_danger"], font=(UI_FONT_FAMILY, 14, "bold")
+            "status_danger", foreground=UI_COLORS["status_danger"], font=self._msg_fonts["bold"]
         )
 
     def _show_status(self, message: str):
+        if getattr(self, "current_page", "chat") != "chat":
+            self._show_page("chat")
         display_message = burmese_display(message)
         self._message_queue.append(display_message.split("\n"))
         if not self._typing_active:
@@ -1073,9 +1509,29 @@ class VotingApp(CTk):
 
     def _insert_message_text(self, text: str, tag: str):
         self.message_box.configure(state="normal")
-        self.message_box.insert("end", text, tag)
+        # Alternate a no-op tag between short runs so Tk draws each run separately (see safe_text_runs).
+        for run in safe_text_runs(text):
+            size = len(run.encode("utf-8"))
+            if run[:1] in (" ", "\n") or self._last_char in (" ", "၊", "။", "\n") or (
+                self._run_bytes + size > 90 and self._is_syllable_break(self._last_char, run)
+            ):
+                self._run_parity ^= 1
+                self._run_bytes = 0
+            self._run_bytes += size
+            self._last_char = run[-1]
+            self.message_box.insert("end", run, (tag, f"_run{self._run_parity}"))
         self.message_box.see("end")
         self.message_box.configure(state="disabled")
+
+    @staticmethod
+    def _is_syllable_break(previous: str, run: str) -> bool:
+        """True when a new Myanmar syllable (or non-Myanmar text) starts at the beginning of run."""
+        first = run[:1]
+        if previous == "\u1039":  # stacked consonant follows
+            return False
+        if "\u1000" <= first <= "\u102A" or first in "\u103F\u104C\u104D\u104E\u104F":
+            return not (len(run) > 1 and run[1] in "\u103A\u1039")
+        return not ("\u1000" <= first <= "\u109F")
 
     def _start_next_message(self):
         if not self._message_queue:
@@ -1135,7 +1591,7 @@ class VotingApp(CTk):
         self.message_box._textbox.tag_configure(
             tag_name,
             foreground=UI_COLORS["status_danger"],
-            font=(UI_FONT_FAMILY, 14, "bold"),
+            font=self._msg_fonts["bold"],
         )
         self._insert_message_text("▌ ", tag_name)
         self.after(260, lambda: self._blink_danger_bar(tag_name, 0))
@@ -1183,6 +1639,8 @@ class VotingApp(CTk):
         return clusters
 
     def _focus_chat(self):
+        if getattr(self, "current_page", "chat") != "chat":
+            self._show_page("chat")
         self.input_entry.focus_set()
 
     def _show_attachment_menu(self):
@@ -1200,17 +1658,10 @@ class VotingApp(CTk):
 
     def _upload_image(self, popup):
         file = filedialog.askopenfilename(filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.bmp")])
-        if not file:
-            popup.destroy()
-            return
-        card = self.ocr.extract_card(file)
-        if not card["raw_text"]:
-            self._show_status(self.ocr.last_error or "စာသားဖတ်မရပါ။ ကြည်လင်သောပုံကို ပြန်တင်ပါ။")
-            popup.destroy()
-            return
-        self._show_status(f"OCR content loaded from image: {Path(file).name}")
         popup.destroy()
-        self._process_ocr_card(card, Path(file).name)
+        if not file:
+            return
+        self._read_card_async(file, Path(file).name)
 
     def _scan_from_camera(self, popup):
         cap = cv2.VideoCapture(0)
@@ -1219,56 +1670,94 @@ class VotingApp(CTk):
             popup.destroy()
             return
         ret, frame = cap.read()
+        cap.release()
+        popup.destroy()
         if ret:
             saved_path = PROJECT_ROOT / "captured_id_card.png"
             cv2.imwrite(str(saved_path), frame)
-            card = self.ocr.extract_card(str(saved_path))
-            if not card["raw_text"]:
-                self._show_status(self.ocr.last_error or "စာသားဖတ်မရပါ။")
-                cap.release()
-                popup.destroy()
+            self._read_card_async(str(saved_path), saved_path.name)
+
+    def _read_card_async(self, image_path: str, source_name: str):
+        """Run OCR in a worker thread (a local vision model can take a minute) and keep the UI responsive."""
+        if getattr(self, "_card_ocr_busy", False):
+            self._show_status("ယခင်ကတ်ကို ဖတ်နေဆဲဖြစ်ပါသည်။ ခဏစောင့်ပါ။")
+            return
+        self._card_ocr_busy = True
+        self._show_status(f"ကတ်ပုံ ({source_name}) ကို ဖတ်ပြီး မဲစာရင်းနှင့် တိုက်စစ်နေပါသည်... ခဏစောင့်ပါ။")
+        outcome: Dict[str, Any] = {}
+
+        def worker():
+            try:
+                outcome["card"] = self.ocr.extract_card(image_path)
+            except Exception as exc:  # never leave the UI waiting
+                outcome["error"] = str(exc)
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+        def poll():
+            if thread.is_alive():
+                self.after(300, poll)
                 return
-            self._show_status("Camera capture completed and OCR text has been prepared.")
-            self._process_ocr_card(card, saved_path.name)
-        cap.release()
-        popup.destroy()
+            self._card_ocr_busy = False
+            card = outcome.get("card")
+            if not card or (not card.get("raw_text") and not card.get("crops")):
+                self._show_status(self.ocr.last_error or outcome.get("error") or "စာသားဖတ်မရပါ။ ကြည်လင်သောပုံကို ပြန်တင်ပါ။")
+                return
+            self._process_ocr_card(card, source_name)
+
+        self.after(300, poll)
 
     def _process_ocr_card(self, card: Dict[str, Any], source_name: str):
-        fields = card.get("fields", {})
-        # Do not present OCR noise as a detected value. A field is kept only when
-        # it exists in the corresponding datafile column; the raw OCR remains
-        # visible in the review window for manual correction.
-        verified_fields: Dict[str, str] = {}
-        for key in ("name", "father_name", "id_number"):
-            value = fields.get(key, "")
-            if value and key in self.current_dataset.columns:
-                known_values = self.current_dataset[key].map(canonical_field)
-                if canonical_field(value) in set(known_values):
-                    verified_fields[key] = value
-        fields = verified_fields
-        required = ("name", "father_name", "id_number")
-        if all(fields.get(key) for key in required):
-            self._submit_card_fields(fields, source_name)
-            return
-        self._show_ocr_review(fields, card.get("raw_text", ""), source_name)
+        """Look the card up automatically; the manual review window opens only when that is not possible."""
+        fields = {key: str(value).strip() for key, value in card.get("fields", {}).items() if str(value).strip()}
+        if fields:
+            result = self.query_engine.evaluate_card(fields, self.role_var)
+            status = result.get("status")
+            if status in {"match", "multiple_matches"}:
+                labels = {"name": "အမည်", "father_name": "ဖခင်အမည်", "id_number": "မှတ်ပုံတင်အမှတ်"}
+                read_summary = "၊ ".join(f"{labels[k]} - {v}" for k, v in fields.items() if k in labels)
+                self.audit_logger.log("card_check", self.current_username, f"Role: {self.role_var} | Source: {source_name} | auto")
+                if status == "multiple_matches":
+                    self._show_status(f"ကတ်မှ ဖတ်ရသည်: {read_summary}\nကိုက်ညီသောမှတ်တမ်း တစ်ခုထက်ပိုရှိ၍ ရွေးချယ်ပါ။")
+                    self._show_match_choices(result["matches"])
+                else:
+                    self._show_status(
+                        f"ကတ်စစ်ဆေးမှု (အလိုအလျောက်): {source_name}\nကတ်မှ ဖတ်ရသည်: {read_summary}\n\n{result.get('reply', '')}"
+                    )
+                return
+        # Nothing readable, or no voter record found: let the user check the handwriting crops.
+        if not fields and self.ocr.last_error:
+            self._show_status(self.ocr.last_error)
+        self._show_ocr_review(fields, card.get("raw_text", ""), source_name, crops=card.get("crops"))
 
     def _submit_card_fields(self, fields: Dict[str, str], source_name: str):
         result = self.query_engine.evaluate_card(fields, self.role_var)
-        self._show_status(result["reply"])
         self.audit_logger.log("card_check", self.current_username, f"Role: {self.role_var} | Source: {source_name}")
+        if result.get("status") == "multiple_matches":
+            self._show_match_choices(result["matches"])
+            return
+        if result.get("status") == "no_match":
+            self._show_status(result.get("message", "မည်သည့်အချက်အလက်ကိုမှ တူညီမှုမတွေ့ရှိပါ။"))
+            return
+        self._show_status(f"ကတ်စစ်ဆေးမှု: {source_name}\n\n{result.get('reply', '')}")
 
-    def _show_ocr_review(self, fields: Dict[str, str], raw_text: str, source_name: str):
+    def _show_ocr_review(self, fields: Dict[str, str], raw_text: str, source_name: str, crops: Optional[Dict[str, Any]] = None):
         review = CTkToplevel(self)
         review.title("OCR အချက်အလက် စစ်ဆေးရန်")
         apply_window_icon(review)
-        review_width, _ = fit_window_to_screen(review, 760, 640, 620, 520, 80, 110)
+        review_width, _ = fit_window_to_screen(review, 760, 900 if crops else 640, 620, 560 if crops else 520, 80, 110)
         start_fade_in(review, steps=8, interval_ms=16)
         review.grid_columnconfigure(1, weight=1)
         review.grid_rowconfigure(5, weight=1)
 
         CTkLabel(
             review,
-            text="လက်ရေးစာကို အပြည့်အစုံမဖတ်နိုင်ပါ။ ကတ်ပေါ်ရှိအချက်အလက်နှင့် တိုက်စစ်ပြီး ဖြည့်/ပြင်ပါ။",
+            text=(
+                "ကတ်ပေါ်ရှိ လက်ရေးပုံကို ကြည့်၍ အောက်ပါအကွက်များတွင် ရိုက်ထည့်/ပြင်ဆင်ပါ။"
+                if crops else
+                "လက်ရေးစာကို အပြည့်အစုံမဖတ်နိုင်ပါ။ ကတ်ပေါ်ရှိအချက်အလက်နှင့် တိုက်စစ်ပြီး ဖြည့်/ပြင်ပါ။"
+            ),
             font=(UI_FONT_FAMILY, 16, "bold"), wraplength=review_width - 60, justify="left",
         ).grid(row=0, column=0, columnspan=2, padx=20, pady=(20, 14), sticky="w")
 
@@ -1278,10 +1767,23 @@ class VotingApp(CTk):
             ("id_number", "မှတ်ပုံတင်အမှတ်"),
         )
         entries: Dict[str, CTkEntry] = {}
+        crop_images: List[Any] = []  # keep references so Tk does not drop the images
+        review._crop_images = crop_images
         for row_number, (key, label) in enumerate(definitions, start=1):
             CTkLabel(review, text=label).grid(row=row_number, column=0, padx=(20, 10), pady=8, sticky="w")
-            entry = CTkEntry(review, height=38)
-            entry.grid(row=row_number, column=1, padx=(0, 20), pady=8, sticky="ew")
+            holder = CTkFrame(review, fg_color="transparent")
+            holder.grid(row=row_number, column=1, padx=(0, 20), pady=8, sticky="ew")
+            if crops and key in crops:
+                rgb = cv2.cvtColor(crops[key], cv2.COLOR_BGR2RGB)
+                pil_crop = Image.fromarray(rgb)
+                display_width = 460
+                display_height = max(30, min(110, int(pil_crop.height * display_width / pil_crop.width)))
+                crop_image = CTkImage(light_image=pil_crop, dark_image=pil_crop, size=(display_width, display_height))
+                crop_label = CTkLabel(holder, text="", image=crop_image)
+                crop_label.pack(anchor="w", pady=(0, 6))
+                crop_images.append(crop_image)
+            entry = CTkEntry(holder, height=38)
+            entry.pack(fill="x")
             if fields.get(key):
                 entry.insert(0, fields[key])
             entries[key] = entry
@@ -1299,9 +1801,8 @@ class VotingApp(CTk):
 
         def confirm_fields():
             corrected = {key: entry.get().strip() for key, entry in entries.items()}
-            missing = [label for key, label in definitions if not corrected[key]]
-            if missing:
-                messagebox.showwarning("အချက်အလက် မပြည့်စုံပါ", "ဖြည့်ရန်လိုသည်: " + "၊ ".join(missing), parent=review)
+            if not any(corrected.values()):
+                messagebox.showwarning("အချက်အလက် မပြည့်စုံပါ", "အနည်းဆုံး တစ်ကွက် ဖြည့်ပါ။ (မှတ်ပုံတင်အမှတ် ဖြည့်လျှင် အတိကျဆုံး)", parent=review)
                 return
             review.destroy()
             self._submit_card_fields(corrected, source_name)
@@ -1370,7 +1871,7 @@ class VotingApp(CTk):
 
         CTkLabel(
             self.choice_frame,
-            text="ကိုက်ညီသောမှတ်တမ်းများရှိပါသည်။ ↑/↓ ရွေးရန် • Enter အတည်ပြုရန် • Esc ပယ်ဖျက်ရန်",
+            text="ကိုက်ညီသောမှတ်တမ်းများရှိပါသည်။\n↑/↓ ရွေးရန် • Enter အတည်ပြုရန် • Esc ပယ်ဖျက်ရန်",
             font=(UI_FONT_FAMILY, 16, "bold"),
         ).grid(row=0, column=0, padx=16, pady=(16, 12), sticky="w")
 
@@ -1398,15 +1899,14 @@ class VotingApp(CTk):
             btn.grid(row=idx + 1, column=0, padx=16, pady=(0, 8), sticky="ew")
             btn.bind("<Up>", lambda _event: self._move_match_choice(-1))
             btn.bind("<Down>", lambda _event: self._move_match_choice(1))
-            btn.bind("<Return>", lambda _event: self._confirm_selected_match())
+            btn.bind("<Return>", lambda event: None if event.state & 0x4 else self._confirm_selected_match())
             self.choice_buttons.append(btn)
         self._bind_tab_order(self.choice_buttons)
         # Override the generic button Enter binding so it always confirms the
         # item highlighted by the arrow-key selection.
         for button in self.choice_buttons:
-            button.bind("<Return>", lambda _event: self._confirm_selected_match())
+            button.bind("<Return>", lambda event: None if event.state & 0x4 else self._confirm_selected_match())
             button.bind("<Escape>", self._cancel_match_choices)
-        self.bind("<Escape>", self._cancel_match_choices)
         if self.choice_buttons:
             self._set_match_choice(0)
             self.after(80, self.choice_buttons[0].focus_set)
@@ -1440,7 +1940,6 @@ class VotingApp(CTk):
         self.choice_buttons = []
         self.choice_matches = []
         self.choice_index = 0
-        self.unbind("<Escape>")
         self._show_status("အမည်တူရွေးချယ်မှုကို ပယ်ဖျက်လိုက်ပါသည်။")
         self.after(80, self.input_entry.focus_set)
         return "break"
@@ -1452,7 +1951,6 @@ class VotingApp(CTk):
         if self.choice_frame is not None:
             self.choice_frame.destroy()
             self.choice_frame = None
-        self.unbind("<Escape>")
         self.choice_buttons = []
         self.choice_matches = []
         self.choice_index = 0
@@ -1471,6 +1969,7 @@ class VotingApp(CTk):
             dataset = self.dataset_manager.load(Path(file))
             artifact = self.model_manager.train_and_save(dataset)
             self.current_dataset = dataset
+            self.current_dataset_name = Path(file).name
             self.query_engine = VoterQueryEngine(self.current_dataset, self.model_manager)
             self._refresh_model_status(artifact)
             self._show_status(f"Model trained successfully using {len(dataset)} records. Accuracy: {artifact['training_accuracy']:.3f}")

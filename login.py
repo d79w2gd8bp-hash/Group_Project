@@ -9,6 +9,7 @@ from customtkinter import (
     CTkLabel,
     set_appearance_mode,
     set_default_color_theme,
+    set_widget_scaling,
 )
 from PIL import Image
 
@@ -22,6 +23,8 @@ from main import (
     AccountManager,
     AuditLogger,
     VotingApp,
+    WindowShortcuts,
+    apply_app_fonts,
     apply_window_icon,
     fit_window_to_screen,
     start_fade_in,
@@ -33,6 +36,9 @@ class LoginApp(CTk):
         super().__init__()
         set_appearance_mode("dark")
         set_default_color_theme("blue")
+        apply_app_fonts(self)
+        self.shortcuts = WindowShortcuts(self)
+        set_widget_scaling(self.shortcuts.zoom)
         self.title(f"Login • {WINDOW_TITLE}")
         apply_window_icon(self)
         self.configure(fg_color=UI_COLORS["background"])
@@ -89,7 +95,7 @@ class LoginApp(CTk):
         ).grid(row=0, column=1, sticky="w", padx=(22, 0))
         CTkLabel(
             brand_panel,
-            text="နိုင်ငံသားအချက်အလက်နှင့် မဲပေးမှုအခြေအနေကို\nလုံခြုံစွာ စစ်ဆေးစီမံနိုင်ပါသည်။",
+            text="နိုင်ငံသားအချက်အလက်နှင့် မဲပေးမှုအခြေအနေကို\nလုံခြုံစွာ စစ်ဆေးနိုင်ပါသည်။",
             font=(UI_FONT_FAMILY, 15),
             justify="left",
             text_color="#BFDBFE",

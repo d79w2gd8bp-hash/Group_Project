@@ -4,3 +4,5 @@ scikit-learn
 customtkinter
 pillow
 opencv-python-headless
+google-genai
+
